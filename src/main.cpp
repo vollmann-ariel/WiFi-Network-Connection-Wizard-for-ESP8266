@@ -74,56 +74,26 @@ void handleConnect()
 {
   String ssidArg = server.arg("ssid");
   String passArg = server.arg("pass");
+  String message;
+  int contador = 0;
   Serial.println(ssidArg);
   Serial.println(passArg);
 
   yield();
-  WiFi.mode(WIFI_STA);
   WiFi.begin(ssidArg, passArg);
   Serial.println("Conectando");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    contador++;
+    if (contador>=15)
+    {
+      server.send(200,"text/plain", "La conexión falló");
+      return;
+    }
   }
-  Serial.println("");
-  Serial.print("WiFi conectado. IP: ");
-  Serial.println(WiFi.localIP());
+  message = "WiFi conectado. IP: " + WiFi.localIP().toString();
+  server.send(200, "text/plain", message); ///NO FUNCIONA POR EL CORTE, IMPLEMENTAR AJAX
+
+  Serial.println(message);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -5,10 +5,8 @@
 .vscode/launch.json
 .vscode/ipch
 .test
-test/
-
-include/README
-
-lib/README
-
 Modos-de-conexión-WiFi-3.pdf
+code snippets
+include/README
+lib/README
+test/README

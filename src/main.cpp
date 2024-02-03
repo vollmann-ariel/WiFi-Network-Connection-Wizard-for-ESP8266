@@ -14,29 +14,22 @@ ESP8266WebServer webServer(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
 
 
+void replaceWord(String& htmlString, const String& oldString, const String& newString) {
+  size_t startPos = 0;
 
-void replaceId(char* html, const char* oldId, const char* newId) {
-    char* index = NULL;
-    size_t oldIdLen = strlen(oldId);
-    
-    while ((index = strstr(html, oldId)) != NULL) {
-        char tempBuffer[1000];
-        strncpy(tempBuffer, html, index - html);
-        tempBuffer[index - html] = '\0';
-        strcat(tempBuffer, newId);
-        strcat(tempBuffer, index + oldIdLen);
-        strcpy(html, tempBuffer);
-    }
+  while ((startPos = htmlString.indexOf(oldString, startPos)) != -1) {
+    htmlString.replace(oldString, newString);
+    startPos += newString.length();
+  }
 }
 
 void publishWifiInfo(boolean append, String ssid, int32_t channel, int32_t rssi, String selector, String request, uint8_t num){
 
-	char newHtml[sizeof(netHtml)];
-	strcpy_P(newHtml, netHtml);
+	String newHtml = netHtml;
 
-	replaceId((char*)newHtml, "WIFI_NAME", ssid.c_str());
-	replaceId((char*)newHtml, "CHANNEL_NUMBER", String(channel).c_str());
-	replaceId((char*)newHtml, "SIGNAL_STRENGTH", String(rssi).c_str());
+	replaceWord(newHtml, "WIFI_NAME", ssid);
+	replaceWord(newHtml, "CHANNEL_NUMBER", String(channel));
+	replaceWord(newHtml, "SIGNAL_STRENGTH", String(rssi));
 
 	JsonDocument jsonObj;
 	jsonObj["selector"] = selector;

@@ -6,7 +6,10 @@
 .vscode/ipch
 .test
 Modos-de-conexión-WiFi-3.pdf
-code snippets
 include/README
 lib/README
 test/README
+code snippets/1. Using Luci Style
+src/recortes.txt
+
+code snippets/2. Bootstrap/

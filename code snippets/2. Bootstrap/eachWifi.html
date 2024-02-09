@@ -1,0 +1,79 @@
+<!-- Esto va comprimido u escapado en el script de JS de abajo-->
+<div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse#INDEX" aria-expanded="false" aria-controls="collapse#INDEX">
+        #SSID
+        </button>
+    </h2>
+    <div id="collapse#INDEX" class="accordion-collapse collapse" data-bs-parent="#wifiAccordion" style="">
+        <div class="accordion-body">
+            <p>
+                <small>
+                    Channel: #CHANNEL <br>
+                    Signal: #SIGNAL dB <br>
+                    Encryption: #ENCRYPTION <br>
+                    BSSID: #BSSID <br>
+                    Hidden: #HIDDEN <br>
+                </small>
+            </p>
+            <div class="align-items-center">
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="floatingPassword#INDEX" placeholder="Password">
+                    <label for="floatingPassword#INDEX">Password</label>
+                </div>
+                <div class="btn-group-sm pt-2" role="group" aria-label="Small button group">
+                    <button index="#INDEX" type="button" class="btn btn-outline-danger" data-bs-toggle="button" aria-pressed="false" onclick="togglePassword(this)">Show Password</button>
+                    <button index="#INDEX" ssid="#SSID" type="button" class="btn btn-outline-success" onclick="connectTo(this)">Connect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<!--Mandar una vez este div para ubicar dentro del div de id=container.-->
+<div class="accordion" id="wifiAccordion"></div>
+
+<!-- Mandar una vez este script dentro del body. Esto va comprimido (no escapado dentro de initWifiScripts sin los tags <script> y </script> --> 
+<script>
+    function connectTo(connectButton) {
+        var index = connectButton.getAttribute("index");
+        var ssid = connectButton.getAttribute("ssid");
+        var passwordInput = document.getElementById("floatingPassword"+index);
+        var password = passwordInput.value;
+        LAST_REQUESTED = "connect";
+        webSocket.send(JSON.stringify({
+          selector: "container",
+          request: LAST_REQUESTED,
+          data: {"ssid": ssid, "password": password},
+          append: false
+        }));
+    }
+    function togglePassword(showPassButton) {
+        var index = showPassButton.getAttribute("index");
+        var passwordInput = document.getElementById("floatingPassword"+index);
+
+        if (showPassButton.getAttribute("aria-pressed") === "true") {
+            passwordInput.type = "text";
+            console.log("text");
+            } else {
+            console.log("password");
+            passwordInput.type = "password";
+        }
+    }
+    function addAccordion(jsonWifiInfo){
+        const wifiAccordion = document.getElementById("wifiAccordion");
+        var accordionHtml = '<div class=\"accordion-item\"> <h2 class=\"accordion-header\"> <button class=\"accordion-button collapsed\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#collapse#INDEX\" aria-expanded=\"false\" aria-controls=\"collapse#INDEX\"> #SSID </button> </h2> <div id=\"collapse#INDEX\" class=\"accordion-collapse collapse\" data-bs-parent=\"#wifiAccordion\" style=\"\"> <div class=\"accordion-body\"> <p> <small> Channel: #CHANNEL <br> Signal: #SIGNAL dB <br> Encryption: #ENCRYPTION <br> BSSID: #BSSID <br> Hidden: #HIDDEN <br> </small> </p> <div class=\"align-items-center\"> <div class=\"form-floating\"> <input type=\"password\" class=\"form-control\" id=\"floatingPassword#INDEX\" placeholder=\"Password\"> <label for=\"floatingPassword#INDEX\">Password</label> </div> <div class=\"btn-group-sm pt-2\" role=\"group\" aria-label=\"Small button group\"> <button index=\"#INDEX\" type=\"button\" class=\"btn btn-outline-danger\" data-bs-toggle=\"button\" aria-pressed=\"false\" onclick=\"togglePassword(this)\">Show Password</button> <button index=\"#INDEX\" ssid=\"#SSID\" type=\"button\" class=\"btn btn-outline-success\" onclick=\"connectTo(this)\">Connect</button> </div> </div> </div> </div></div>';
+        var modifiedHtml = accordionHtml.replaceAll("#INDEX", jsonWifiInfo.i);
+        var modifiedHtml = modifiedHtml.replaceAll("#CHANNEL", jsonWifiInfo.channel);
+        var modifiedHtml = modifiedHtml.replaceAll("#SIGNAL", jsonWifiInfo.rssi);
+        var modifiedHtml = modifiedHtml.replaceAll("#ENCRYPTION", jsonWifiInfo.encryptionType);
+        var modifiedHtml = modifiedHtml.replaceAll("#BSSID", jsonWifiInfo.bssid);
+        var modifiedHtml = modifiedHtml.replaceAll("#HIDDEN", jsonWifiInfo.hidden ? "yes" : "no");
+        var modifiedHtml = modifiedHtml.replaceAll("#SSID", jsonWifiInfo.ssid);
+        wifiAccordion.insertAdjacentHTML("beforeend", modifiedHtml);
+    }
+</script>

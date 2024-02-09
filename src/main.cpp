@@ -6,6 +6,7 @@
 
 
 const char PROGMEM indexHtml[] = R"(<!doctype html><html lang="es" data-bs-theme="dark"> <head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1"> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"> <link href="https://getbootstrap.com/docs/5.3/assets/css/docs.css" rel="stylesheet"> <title>Bootstrap Example</title> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script> </head> <body class="p-3 m-0 border-0 bd-example m-0 border-0" data-bs-theme="dark"> <nav class="navbar navbar-expand-lg bg-body-tertiary"> <div class="container-fluid"> <a class="navbar-brand" href="#">Navbar</a> <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"> <span class="navbar-toggler-icon"></span> </button> <div class="collapse navbar-collapse" id="navbarSupportedContent"> <ul class="navbar-nav me-auto mb-2 mb-lg-0"> <li class="nav-item"> <a class="nav-link active" aria-current="page" href="#">Home</a> </li> <li class="nav-item"> <a class="nav-link" id="refresh" href="#">Refresh</a> </li> <li class="nav-item dropdown"> <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"> Dropdown </a> <ul class="dropdown-menu"> <li><a class="dropdown-item" href="#">Action</a></li> <li><a class="dropdown-item" href="#">Another action</a></li> <li><hr class="dropdown-divider"></li> <li><a class="dropdown-item" href="#">Something else here</a></li> </ul> </li> <li class="nav-item"> <a class="nav-link disabled" aria-disabled="true">Disabled</a> </li> </ul> </div> </div> </nav> <div id="container"></div> <script> var webSocket = new WebSocket('ws://' + location.hostname + ':81/', ['arduino']); webSocket.addEventListener('open', () => { console.log('Connect'); }); webSocket.addEventListener('close', () => { console.log('Disconnect');}); webSocket.addEventListener('message', (event) => { const rxData = JSON.parse(event.data); if (rxData.request === LAST_REQUESTED) { if(rxData.selector === 'script'){ if(!document.getElementById(rxData.request)){ var Jscript = rxData.data; var bodyElement = document.querySelector("body"); var newScriptElement = document.createElement("script"); newScriptElement.id=rxData.request; newScriptElement.innerHTML = Jscript; bodyElement.appendChild(newScriptElement); } } else { if (rxData.selector === 'accordion'){ addAccordion(rxData.data); } else { container = document.getElementById(rxData.selector); if(rxData.append === false){ container.innerHTML = ''; } container.insertAdjacentHTML("beforeend", rxData.data); } } } else { console.log('unexpected request'); } }); document.querySelector('#refresh').addEventListener('click', (event) => { event.preventDefault(); LAST_REQUESTED = "ssids"; console.log("hola"); webSocket.send(JSON.stringify({ selector: "container", request: LAST_REQUESTED, data: {}, append: false })); }); </script> </body></html>)";
+const char PROGMEM wifiScript[] = R"(function connectTo(connectButton) { var index = connectButton.getAttribute("index"); var ssid = connectButton.getAttribute("ssid"); var passwordInput = document.getElementById("floatingPassword"+index); var password = passwordInput.value; LAST_REQUESTED = "connect"; webSocket.send(JSON.stringify({ selector: "container", request: LAST_REQUESTED, data: {"ssid": ssid, "password": password}, append: false })); } function togglePassword(showPassButton) { var index = showPassButton.getAttribute("index"); var passwordInput = document.getElementById("floatingPassword"+index); if (showPassButton.getAttribute("aria-pressed") === "true") { passwordInput.type = "text"; console.log("text"); } else { console.log("password"); passwordInput.type = "password"; } } function addAccordion(jsonWifiInfo){ const wifiAccordion = document.getElementById("wifiAccordion"); var accordionHtml = '<div class=\"accordion-item\"> <h2 class=\"accordion-header\"> <button class=\"accordion-button collapsed\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#collapse#INDEX\" aria-expanded=\"false\" aria-controls=\"collapse#INDEX\"> #SSID </button> </h2> <div id=\"collapse#INDEX\" class=\"accordion-collapse collapse\" data-bs-parent=\"#wifiAccordion\" style=\"\"> <div class=\"accordion-body\"> <p> <small> Channel: #CHANNEL <br> Signal: #SIGNAL dB <br> Encryption: #ENCRYPTION <br> BSSID: #BSSID <br> Hidden: #HIDDEN <br> </small> </p> <div class=\"align-items-center\"> <div class=\"form-floating\"> <input type=\"password\" class=\"form-control\" id=\"floatingPassword#INDEX\" placeholder=\"Password\"> <label for=\"floatingPassword#INDEX\">Password</label> </div> <div class=\"btn-group-sm pt-2\" role=\"group\" aria-label=\"Small button group\"> <button index=\"#INDEX\" type=\"button\" class=\"btn btn-outline-danger\" data-bs-toggle=\"button\" aria-pressed=\"false\" onclick=\"togglePassword(this)\">Show Password</button> <button index=\"#INDEX\" ssid=\"#SSID\" type=\"button\" class=\"btn btn-outline-success\" onclick=\"connectTo(this)\">Connect</button> </div> </div> </div> </div></div>'; var modifiedHtml = accordionHtml.replaceAll("#INDEX", jsonWifiInfo.i); var modifiedHtml = modifiedHtml.replaceAll("#CHANNEL", jsonWifiInfo.channel); var modifiedHtml = modifiedHtml.replaceAll("#SIGNAL", jsonWifiInfo.rssi); var modifiedHtml = modifiedHtml.replaceAll("#ENCRYPTION", jsonWifiInfo.encryptionType); var modifiedHtml = modifiedHtml.replaceAll("#BSSID", jsonWifiInfo.bssid); var modifiedHtml = modifiedHtml.replaceAll("#HIDDEN", jsonWifiInfo.hidden ? "yes" : "no"); var modifiedHtml = modifiedHtml.replaceAll("#SSID", jsonWifiInfo.ssid); wifiAccordion.insertAdjacentHTML("beforeend", modifiedHtml); })";
 
 ESP8266WebServer webServer(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
@@ -27,7 +28,7 @@ void initWifiScripts(uint8_t num, String request){
 	jsonObj["selector"] = "script";
 	jsonObj["request"] = request;
 	jsonObj["append"] = false;
-	jsonObj["data"] = R"(function togglePassword(showPassButton) { var passwordInput = showPassButton.parentNode.parentNode.querySelector("#floatingPassword"); if (showPassButton.getAttribute("aria-pressed") === "true") { passwordInput.type = "text"; console.log("text"); } else { console.log("password"); passwordInput.type = "password"; } } function addAccordion(jsonWifiInfo){ const wifiAccordion = document.getElementById("wifiAccordion"); var accordionHtml = '<div class=\"accordion-item\"> <h2 class=\"accordion-header\"> <button class=\"accordion-button collapsed\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#collapse#INDEX\" aria-expanded=\"false\" aria-controls=\"collapse#INDEX\"> #SSID </button> </h2> <div id=\"collapse#INDEX\" class=\"accordion-collapse collapse\" data-bs-parent=\"#wifiAccordion\" style=\"\"> <div class=\"accordion-body\"> <p> <small> Channel: #CHANNEL <br> Signal: #SIGNAL dB <br> Encryption: #ENCRYPTION <br> BSSID: #BSSID <br> Hidden: #HIDDEN <br> </small> </p> <div class=\"align-items-center\"> <div class=\"form-floating\"> <input type=\"password\" class=\"form-control\" id=\"floatingPassword\" placeholder=\"Password\"> <label for=\"floatingPassword\">Password</label> </div> <div class=\"btn-group-sm pt-2\" role=\"group\" aria-label=\"Small button group\"> <button id=\"showPass\" type=\"button\" class=\"btn btn-outline-danger\" data-bs-toggle=\"button\" aria-pressed=\"false\" onclick=\"togglePassword(this)\">Show Password</button> <button id=\"#SSID\" type=\"button\" class=\"btn btn-outline-success\">Connect</button> </div> </div> </div> </div></div>'; var modifiedHtml = accordionHtml.replaceAll("#INDEX", jsonWifiInfo.i); var modifiedHtml = modifiedHtml.replaceAll("#CHANNEL", jsonWifiInfo.channel); var modifiedHtml = modifiedHtml.replaceAll("#SIGNAL", jsonWifiInfo.rssi); var modifiedHtml = modifiedHtml.replaceAll("#ENCRYPTION", jsonWifiInfo.encryptionType); var modifiedHtml = modifiedHtml.replaceAll("#BSSID", jsonWifiInfo.bssid); var modifiedHtml = modifiedHtml.replaceAll("#HIDDEN", jsonWifiInfo.hidden ? "yes" : "no"); var modifiedHtml = modifiedHtml.replaceAll("#SSID", jsonWifiInfo.ssid); wifiAccordion.insertAdjacentHTML("beforeend", modifiedHtml); })";
+	jsonObj["data"] = (String)wifiScript;
 
 	String jsonString;
 	serializeJson(jsonObj, jsonString);
@@ -93,13 +94,26 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     case WStype_TEXT:
       	Serial.printf("[%u] <- This client sent this message -> %s\n", num, payload);
 		JsonDocument doc;
-		DeserializationError error = deserializeJson(doc, payload);
-		if (error) {
-			Serial.print("Error al deserializar JSON: ");
-			Serial.println(error.c_str());
-			return;
-		}
-		if(doc["request"] == "ssids") {
+		deserializeJson(doc, payload);
+		if(doc["request"] == "connect"){
+			const char* ssid = doc["data"]["ssid"];
+			const char* password = doc["data"]["password"];
+			Serial.println("\nConectándose a Wi-Fi...");
+			WiFi.begin(ssid, password);
+			while (WiFi.status() != WL_CONNECTED) {
+				delay(1000);
+				Serial.println("Conectando...");
+				if (WiFi.status()== WL_CONNECT_FAILED) {
+					Serial.printf("Imposible de conectar\n");
+					break;
+				}
+			}
+			Serial.print("Station IP address: ");
+			Serial.println(WiFi.localIP());
+			Serial.print("Soft AP IP address: ");
+			Serial.println(WiFi.softAPIP());
+
+		}else if(doc["request"] == "ssids") {
 			initWifiScripts(num, doc["request"]);
 			initAccordionHtml(num, doc["request"]);
 			publishWifiInfo(num, doc["request"]);

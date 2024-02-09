@@ -15,7 +15,7 @@ void initAccordionHtml(uint8_t num, String request){
 	jsonObj["selector"] = "container";
 	jsonObj["request"] = request;
 	jsonObj["append"] = false;
-	jsonObj["html"] = R"(<div class=\"accordion\" id=\"wifiAccordion\"></div>)";
+	jsonObj["data"] = "<div class=\"accordion\" id=\"wifiAccordion\"></div>";
 
 	String jsonString;
 	serializeJson(jsonObj, jsonString);
@@ -27,12 +27,56 @@ void initWifiScripts(uint8_t num, String request){
 	jsonObj["selector"] = "script";
 	jsonObj["request"] = request;
 	jsonObj["append"] = false;
-	jsonObj["data"] = R"(function togglePassword(showPassButton) { var passwordInput = showPassButton.parentNode.parentNode.querySelector("#floatingPassword"); if (showPassButton.getAttribute("aria-pressed") === "true") { passwordInput.type = "text"; console.log("text"); } else { console.log("password"); passwordInput.type = "password"; } } function addAccordion(jsonWifiInfo){ const wifiAccordion = document.getElementById("wifiAccordion"); var accordionHtml = '<div class=\"accordion-item\"> <h2 class=\"accordion-header\"> <button class=\"accordion-button collapsed\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#collapse#INDEX\" aria-expanded=\"false\" aria-controls=\"collapse#INDEX\"> #SSID </button> </h2> <div id=\"collapse#INDEX\" class=\"accordion-collapse collapse\" data-bs-parent=\"#wifiAccordion\" style=\"\"> <div class=\"accordion-body\"> <p> <small> Channel: #CHANNEL <br> Signal: #SIGNAL dB <br> Encryption: #ENCRYPTION <br> BSSID: #BSSID <br> Hidden: #HIDDEN <br> </small> </p> <div class=\"align-items-center\"> <div class=\"form-floating\"> <input type=\"password\" class=\"form-control\" id=\"floatingPassword\" placeholder=\"Password\"> <label for=\"floatingPassword\">Password</label> </div> <div class=\"btn-group-sm pt-2\" role=\"group\" aria-label=\"Small button group\"> <button id=\"showPass\" type=\"button\" class=\"btn btn-outline-danger\" data-bs-toggle=\"button\" aria-pressed=\"false\" onclick=\"togglePassword(this)\">Show Password</button> <button id=\"#SSID\" type=\"button\" class=\"btn btn-outline-success\">Connect</button> </div> </div> </div> </div></div>'; var modifiedHtml = accordionHtml.replaceAll("#INDEX", jsonWifiInfo.i); var modifiedHtml = modifiedHtml.replaceAll("#CHANNEL", jsonWifiInfo.channel); var modifiedHtml = modifiedHtml.replaceAll("#SIGNAL", jsonWifiInfo.rssi); var modifiedHtml = modifiedHtml.replaceAll("#ENCRYPTION", jsonWifiInfo.encryptionType); var modifiedHtml = modifiedHtml.replaceAll("#BSSID", jsonWifiInfo.bssid); var modifiedHtml = modifiedHtml.replaceAll("#HIDDEN", jsonWifiInfo.hidden); var modifiedHtml = modifiedHtml.replaceAll("#SSID", jsonWifiInfo.ssid); wifiAccordion.insertAdjacentHTML("beforeend", modifiedHtml); })";
+	jsonObj["data"] = R"(function togglePassword(showPassButton) { var passwordInput = showPassButton.parentNode.parentNode.querySelector("#floatingPassword"); if (showPassButton.getAttribute("aria-pressed") === "true") { passwordInput.type = "text"; console.log("text"); } else { console.log("password"); passwordInput.type = "password"; } } function addAccordion(jsonWifiInfo){ const wifiAccordion = document.getElementById("wifiAccordion"); var accordionHtml = '<div class=\"accordion-item\"> <h2 class=\"accordion-header\"> <button class=\"accordion-button collapsed\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#collapse#INDEX\" aria-expanded=\"false\" aria-controls=\"collapse#INDEX\"> #SSID </button> </h2> <div id=\"collapse#INDEX\" class=\"accordion-collapse collapse\" data-bs-parent=\"#wifiAccordion\" style=\"\"> <div class=\"accordion-body\"> <p> <small> Channel: #CHANNEL <br> Signal: #SIGNAL dB <br> Encryption: #ENCRYPTION <br> BSSID: #BSSID <br> Hidden: #HIDDEN <br> </small> </p> <div class=\"align-items-center\"> <div class=\"form-floating\"> <input type=\"password\" class=\"form-control\" id=\"floatingPassword\" placeholder=\"Password\"> <label for=\"floatingPassword\">Password</label> </div> <div class=\"btn-group-sm pt-2\" role=\"group\" aria-label=\"Small button group\"> <button id=\"showPass\" type=\"button\" class=\"btn btn-outline-danger\" data-bs-toggle=\"button\" aria-pressed=\"false\" onclick=\"togglePassword(this)\">Show Password</button> <button id=\"#SSID\" type=\"button\" class=\"btn btn-outline-success\">Connect</button> </div> </div> </div> </div></div>'; var modifiedHtml = accordionHtml.replaceAll("#INDEX", jsonWifiInfo.i); var modifiedHtml = modifiedHtml.replaceAll("#CHANNEL", jsonWifiInfo.channel); var modifiedHtml = modifiedHtml.replaceAll("#SIGNAL", jsonWifiInfo.rssi); var modifiedHtml = modifiedHtml.replaceAll("#ENCRYPTION", jsonWifiInfo.encryptionType); var modifiedHtml = modifiedHtml.replaceAll("#BSSID", jsonWifiInfo.bssid); var modifiedHtml = modifiedHtml.replaceAll("#HIDDEN", jsonWifiInfo.hidden ? "yes" : "no"); var modifiedHtml = modifiedHtml.replaceAll("#SSID", jsonWifiInfo.ssid); wifiAccordion.insertAdjacentHTML("beforeend", modifiedHtml); })";
 
 	String jsonString;
 	serializeJson(jsonObj, jsonString);
 	webSocket.sendTXT(num, jsonString);
-	Serial.println("Script enviado");
+}
+
+void publishWifiInfo(uint8_t num, String request){
+	String ssid;
+	int32_t rssi;
+	uint8_t encryptionType;
+	uint8_t *bssid;
+	int32_t channel;
+	bool hidden;
+	int scanResult;
+	JsonDocument jsonObj;
+    JsonDocument networkInfo;
+	String jsonString;
+	char macStr[18];
+	yield();
+	scanResult = WiFi.scanNetworks(/*async=*/false, /*hidden=*/true);
+	Serial.printf("Scan done! %d networks found!\n", scanResult);
+	if (scanResult == 0) {
+	Serial.println("No WiFi networks found");
+	} else if (scanResult > 0) {
+		jsonObj["append"] = false;
+		jsonObj["selector"] = "accordion";
+		jsonObj["request"] = request;
+		for (int8_t i = 0; i < scanResult; i++) {
+			WiFi.getNetworkInfo(i, ssid, encryptionType, rssi, bssid, channel, hidden);
+			if (i==1) {
+				jsonObj["append"] = true;
+			}
+			networkInfo["i"] = i;
+			networkInfo["channel"] = channel;
+			networkInfo["rssi"] = rssi;
+			networkInfo["encryptionType"] = encryptionType;
+			sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+			networkInfo["bssid"] = macStr;
+			networkInfo["hidden"] = hidden;
+			networkInfo["ssid"] = ssid;
+			jsonObj["data"] = networkInfo;
+			serializeJson(jsonObj, jsonString);
+			webSocket.sendTXT(num, jsonString);
+			Serial.printf("%2d) %s\n", i, ssid.c_str());
+			yield();
+		}
+	} else {
+	Serial.println("WiFi scan error " + scanResult);
+	}
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
@@ -47,7 +91,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 		Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 		break;
     case WStype_TEXT:
-      	Serial.printf("[%u] get Text: %s\n", num, payload);
+      	Serial.printf("[%u] <- This client sent this message -> %s\n", num, payload);
 		JsonDocument doc;
 		DeserializationError error = deserializeJson(doc, payload);
 		if (error) {
@@ -58,14 +102,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 		if(doc["request"] == "ssids") {
 			initWifiScripts(num, doc["request"]);
 			initAccordionHtml(num, doc["request"]);
-
-
-
-
-
-
-
-			//wifiScan(num, doc["selector"], doc["request"]);
+			publishWifiInfo(num, doc["request"]);
 		} else {
 			Serial.print("Unexpected Request");
 		}		
@@ -123,7 +160,7 @@ void loop() {
 			counter++;
 			bool ping = (counter % 2);
 			int i = webSocket.connectedClients(ping);
-			Serial.printf("%d Connected websocket clients ping: %d\n", i, ping);
+			//Serial.printf("%d Connected websocket clients ping: %d\n", i, ping);
 			last_10sec = millis();
 		}	
 	}
